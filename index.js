@@ -25,10 +25,11 @@ const transporter = nodemailer.createTransport({
 
   app.post('/login', (req, res) => {
     const { email, senha } = req.body;
+    console.log('Recebendo login:', email, senha);
     if (!email || !senha) {
       return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
     }
-    const query = 'SELECT nome, email, adm FROM usuario WHERE email = ? AND senha = ?';
+    const query = 'SELECT nome, email, apartamento, adm FROM usuario WHERE email = ? AND senha = ?';
     db.query(query, [email, senha], (err, results) => {
       if (err) {
         console.error(err);
@@ -37,9 +38,12 @@ const transporter = nodemailer.createTransport({
       if (results.length === 0) {
         return res.status(401).json({ error: 'Credenciais inválidas.' });
       }
+
+      console.log('Resultado do banco:', results[0])
       const user = results[0];
    
-      return res.status(200).json({ message: 'Login successful', adm: Boolean(user.adm), nome: user.nome });
+      return res.status(200).json({ message: 'Login successful', adm: Boolean(user.adm), nome: user.nome, email: user.email,
+      apartamento: user.apartamento });
     });
   });
 
