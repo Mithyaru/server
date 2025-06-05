@@ -16,36 +16,38 @@ app.use(express.json());
 
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'email que usa pra enivar',    //MUDAR PARA SUAS INFORMACOES
-      pass: 'senha do email' //MUDAR PARA SUAS INFORMACOES
-    }
-  });
+  service: 'gmail',
+  auth: {
+    user: 'email que usa pra enivar',    //MUDAR PARA SUAS INFORMACOES
+    pass: 'senha do email' //MUDAR PARA SUAS INFORMACOES
+  }
+});
 
-  app.post('/login', (req, res) => {
-    const { email, senha } = req.body;
-    console.log('Recebendo login:', email, senha);
-    if (!email || !senha) {
-      return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+app.post('/login', (req, res) => {
+  const { email, senha } = req.body;
+  console.log('Recebendo login:', email, senha);
+  if (!email || !senha) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+  }
+  const query = 'SELECT nome, email, apartamento, adm FROM usuario WHERE email = ? AND senha = ?';
+  db.query(query, [email, senha], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Erro no servidor.' });
     }
-    const query = 'SELECT nome, email, apartamento, adm FROM usuario WHERE email = ? AND senha = ?';
-    db.query(query, [email, senha], (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Erro no servidor.' });
-      }
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Credenciais inválidas.' });
-      }
+    if (results.length === 0) {
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
 
-      console.log('Resultado do banco:', results[0])
-      const user = results[0];
-   
-      return res.status(200).json({ message: 'Login successful', adm: Boolean(user.adm), nome: user.nome, email: user.email,
-      apartamento: user.apartamento });
+    console.log('Resultado do banco:', results[0])
+    const user = results[0];
+
+    return res.status(200).json({
+      message: 'Login successful', adm: Boolean(user.adm), nome: user.nome, email: user.email,
+      apartamento: user.apartamento
     });
   });
+});
 
 app.post("/registerMorador", (req, res) => {
   const { nome, telefone, apartamento, email, senha } = req.body;
@@ -144,6 +146,37 @@ app.post("/registerVisitante", (req, res) => {
     });
   });
 });
+
+app.post("/reserva-area", (req, res) => {
+
+  console.log("Requisição recebida em /reserva-area");
+  console.log("Dados recebidos:", req.body);
+
+  const { nome, data, horaInicio, horaFim, motivo } = req.body;
+
+  if (!nome || !data || !horaInicio || !horaFim || !motivo) {
+    return res.status(400).json({ error: "Todos os campos são obrigatórios." });
+  }
+
+  const dt_inicio = `${data} ${horaInicio}`;
+  const dt_fim = `${data} ${horaFim}`;
+
+  const insertReserva = `
+    INSERT INTO area (nome, dt_inicio, dt_fim, motivo)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  db.query(insertReserva, [nome, dt_inicio, dt_fim, motivo], (err) => {
+    if (err) {
+      console.error("Erro ao cadastrar reserva:", err);
+      return res.status(500).json({ error: "Erro no servidor." });
+    }
+
+    return res.status(200).json({ message: "Reserva cadastrada com sucesso!" });
+  });
+});
+
+
 
 app.listen(3001, () => {
   console.log("Servidor rodando na porta 3001");
