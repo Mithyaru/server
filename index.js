@@ -148,33 +148,59 @@ app.post("/registerVisitante", (req, res) => {
 });
 
 app.post("/reserva-area", (req, res) => {
-
-  console.log("Requisição recebida em /reserva-area");
-  console.log("Dados recebidos:", req.body);
-
   const { nome, data, horaInicio, horaFim, motivo } = req.body;
-
-  if (!nome || !data || !horaInicio || !horaFim || !motivo) {
-    return res.status(400).json({ error: "Todos os campos são obrigatórios." });
-  }
 
   const dt_inicio = `${data} ${horaInicio}`;
   const dt_fim = `${data} ${horaFim}`;
 
-  const insertReserva = `
-    INSERT INTO area (nome, dt_inicio, dt_fim, motivo)
-    VALUES (?, ?, ?, ?)
+  const verificaConflito = `
+    SELECT * FROM area 
+    WHERE dt_inicio < ? AND dt_fim > ?
   `;
 
-  db.query(insertReserva, [nome, dt_inicio, dt_fim, motivo], (err) => {
+  db.query(verificaConflito, [dt_fim, dt_inicio], (err, results) => {
     if (err) {
-      console.error("Erro ao cadastrar reserva:", err);
-      return res.status(500).json({ error: "Erro no servidor." });
+      console.error("Erro ao verificar conflitos:", err);
+      return res.status(500).json({ message: "Erro ao verificar conflitos" });
     }
 
-    return res.status(200).json({ message: "Reserva cadastrada com sucesso!" });
+    if (results.length > 0) {
+      return res.status(400).json({ message: "Horário já reservado! Tente novamente com outro horário ou consulte a tabela pra verificar horários disponíveis" });
+    }
+
+    const inserirReserva = `
+      INSERT INTO area (nome, dt_inicio, dt_fim, motivo) 
+      VALUES (?, ?, ?, ?)
+    `;
+
+    db.query(inserirReserva, [nome, dt_inicio, dt_fim, motivo], (err, result) => {
+      if (err) {
+        console.error("Erro ao inserir reserva:", err);
+        return res.status(500).json({ message: "Erro ao reservar" });
+      }
+
+      res.status(200).json({ message: "Reserva realizada com sucesso!" });
+    });
   });
 });
+
+
+app.get("/reservas", (req, res) => {
+  const query = `
+    SELECT nome, dt_inicio AS horario_inicio, dt_fim AS horario_fim, motivo
+    FROM area
+    ORDER BY dt_inicio DESC
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Erro ao buscar reservas:", err);
+      return res.status(500).json({ message: "Erro ao buscar reservas" });
+    }
+    res.json(results);
+  });
+});
+
 
 
 
