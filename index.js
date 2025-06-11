@@ -119,33 +119,36 @@ Equipe do Condomínio`,
 });
 
 app.post("/registerVisitante", (req, res) => {
-  const { nome, cpf, data } = req.body;
-  if (!nome || !cpf || !data) {
+  const { nome, documento, dt_visita } = req.body;
+
+  if (!nome || !documento || !dt_visita) {
     return res.status(400).json({ error: "Todos os campos são obrigatórios." });
   }
-  if (!/^\d{11}$/.test(cpf)) {
-    return res.status(400).json({ error: "Documento de identidade inválido. Deve conter 11 dígitos." });
+
+  if (!/^\d{11}$/.test(documento)) {
+    return res.status(400).json({ error: "Documento inválido. Deve conter 11 dígitos." });
   }
-  const visitaDate = new Date(data);
+
+  const visitaDate = new Date(dt_visita);
   if (isNaN(visitaDate.getTime())) {
     return res.status(400).json({ error: "Data de visita inválida." });
   }
-  const checkRestricao = "SELECT restricao FROM visitante WHERE cpf = ? AND restricao = 1 LIMIT 1";
-  db.query(checkRestricao, [cpf], (err, restrResults) => {
-    if (err) return res.status(500).json({ error: "Erro no servidor." });
-    if (restrResults.length > 0) return res.status(403).json({ error: "Visitante possui restrições de acesso." });
-    const checkVisitor = "SELECT id FROM visitante WHERE cpf = ? AND data = ?";
-    db.query(checkVisitor, [cpf, data], (err, results) => {
-      if (err) return res.status(500).json({ error: "Erro no servidor." });
-      if (results.length > 0) return res.status(400).json({ error: "Visitante já cadastrado para esta data." });
-      const insertVisitor = "INSERT INTO visitante (nome, cpf, data) VALUES (?, ?, ?)";
-      db.query(insertVisitor, [nome, cpf, data], err => {
-        if (err) return res.status(500).json({ error: "Erro ao cadastrar visitante." });
-        res.status(200).json({ message: "Cadastro de visitante realizado com sucesso!" });
-      });
-    });
+
+  const insertVisitor = `
+    INSERT INTO visitante (nome, documento, dt_visita) 
+    VALUES (?, ?, ?)
+  `;
+
+  db.query(insertVisitor, [nome, documento, dt_visita], (err, result) => {
+    if (err) {
+      console.error("Erro ao inserir visitante:", err);
+      return res.status(500).json({ error: "Erro ao cadastrar visitante." });
+    }
+
+    res.status(200).json({ message: "Cadastro de visitante realizado com sucesso!" });
   });
 });
+
 
 app.post("/reserva-area", (req, res) => {
   const { nome, data, horaInicio, horaFim, motivo } = req.body;
